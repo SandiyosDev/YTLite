@@ -164,7 +164,7 @@ jobs:
         run: |
           # Launch all repository clones concurrently
           (
-            if[ -d "$THEOS/include/YouTubeHeader" ]; then
+            if [ -d "$THEOS/include/YouTubeHeader" ]; then
               git -C $THEOS/include/YouTubeHeader pull
             else
               git clone --quiet --depth=1 https://github.com/PoomSmart/YouTubeHeader.git $THEOS/include/YouTubeHeader
@@ -176,18 +176,21 @@ jobs:
           ) &
 
           (
-            if [ -d "$THEOS/include/PSHeader" ]; then
+            if[ -d "$THEOS/include/PSHeader" ]; then
               git -C $THEOS/include/PSHeader pull
             else
               git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git $THEOS/include/PSHeader
             fi
           ) &
 
-          [ "${{ inputs.enable_youpip }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git &[ "${{ inputs.enable_ytuhd }}" = "true" ] && git clone --quiet --depth=1 https://github.com/Tonwalter888/YTUHD.git &[ "${{ inputs.enable_ryd }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git &[ "${{ inputs.enable_yq }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git &
-          [ "${{ inputs.enable_demc }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git &
-          [ "${{ inputs.enable_demc }}" = "true" ] && git clone --quiet --depth=1 --recurse-submodules https://github.com/therealFoxster/DontEatMyContent.git &
+          if[ "${{ inputs.enable_youpip }}" = "true" ]; then git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git & fi
+          if[ "${{ inputs.enable_ytuhd }}" = "true" ]; then git clone --quiet --depth=1 https://github.com/Tonwalter888/YTUHD.git & fi
+          if[ "${{ inputs.enable_ryd }}" = "true" ]; then git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git & fi
+          if[ "${{ inputs.enable_yq }}" = "true" ]; then git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git & fi
+          if [ "${{ inputs.enable_demc }}" = "true" ]; then git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git & fi
+          if [ "${{ inputs.enable_demc }}" = "true" ]; then git clone --quiet --depth=1 --recurse-submodules https://github.com/therealFoxster/DontEatMyContent.git & fi
           
-          if [ "${{ inputs.enable_yq }}" = "true" ] || [ "${{ inputs.enable_youpip }}" = "true" ]; then
+          if[ "${{ inputs.enable_yq }}" = "true" ] || [ "${{ inputs.enable_youpip }}" = "true" ]; then
             git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git &
           fi
 
@@ -203,10 +206,18 @@ jobs:
             # -j$(sysctl -n hw.logicalcpu) ensures compilation utilizes all CPU Cores
             make clean package -j$(sysctl -n hw.logicalcpu) DEBUG=0 FINALPACKAGE=1
             mv packages/*.deb ${{ github.workspace }}/$2.deb
-          }[ "${{ inputs.enable_youpip }}" = "true" ] && build_tweak YouPiP youpip[ "${{ inputs.enable_ytuhd }}" = "true" ] && build_tweak YTUHD ytuhd[ "${{ inputs.enable_ryd }}" = "true" ] && build_tweak Return-YouTube-Dislikes ryd
-          [ "${{ inputs.enable_demc }}" = "true" ] && { build_tweak YouGroupSettings ygs; build_tweak DontEatMyContent demc; }[ "${{ inputs.enable_yq }}" = "true" ] && build_tweak YouQuality yq
+          }
+
+          if[ "${{ inputs.enable_youpip }}" = "true" ]; then build_tweak YouPiP youpip; fi
+          if[ "${{ inputs.enable_ytuhd }}" = "true" ]; then build_tweak YTUHD ytuhd; fi
+          if [ "${{ inputs.enable_ryd }}" = "true" ]; then build_tweak Return-YouTube-Dislikes ryd; fi
+          if[ "${{ inputs.enable_demc }}" = "true" ]; then 
+            build_tweak YouGroupSettings ygs
+            build_tweak DontEatMyContent demc
+          fi
+          if[ "${{ inputs.enable_yq }}" = "true" ]; then build_tweak YouQuality yq; fi
           
-          if [ "${{ inputs.enable_yq }}" = "true" ] ||[ "${{ inputs.enable_youpip }}" = "true" ]; then
+          if[ "${{ inputs.enable_yq }}" = "true" ] ||[ "${{ inputs.enable_youpip }}" = "true" ]; then
             build_tweak YTVideoOverlay ytvo
           fi
 
