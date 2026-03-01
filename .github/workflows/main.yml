@@ -99,6 +99,9 @@ jobs:
           fi
 
       - name: Install Dependencies
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: brew install make ldid
 
       - name: Set PATH environment variable
@@ -138,164 +141,77 @@ jobs:
       - name: Install cyan
         run: pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
 
-      - name: Download YouTube Plus
-        id: download_ytp
+      - name: Download YouTube Plus & Safari Extension
         run: |
+          # Run downloads in parallel processes
           deb_url="https://github.com/dayanch96/YTLite/releases/download/v${{ inputs.tweak_version }}/com.dvntm.ytlite_${{ inputs.tweak_version }}_iphoneos-arm.deb"
-          wget "$deb_url" --no-verbose -O ${{ github.workspace }}/ytplus.deb
-
-      - name: Clone Open in YouTube (Safari extension)
-        run: |
-          git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/CokePokes/YoutubeExtensions/
-          cd YoutubeExtensions
-          git sparse-checkout set --no-cone OpenYoutubeSafariExtension.appex
-          git checkout
-          mv *.appex ${{ github.workspace }}
-
-      - name: Clone YouTubeHeader
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
-        run: |
-          if [ -d "$THEOS/include/YouTubeHeader" ]; then
-            echo "YouTubeHeader exists. Pulling latest changes..."
-            cd $THEOS/include/YouTubeHeader
-            git pull
-          else
-            echo "YouTubeHeader does not exist. Cloning repository..."
-            cd $THEOS/include
-            git clone --quiet --depth=1 https://github.com/PoomSmart/YouTubeHeader.git
-          fi
-
-          if [ "${{ inputs.enable_demc }}" = "true" ]; then
-            echo "Copying YouTubeHeader to YTHeaders..."
-            rm -rf "$THEOS/include/YTHeaders"
-            cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
-          fi
-        env:
-          THEOS: ${{ github.workspace }}/theos
-
-      - name: Clone PSHeader
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
-        run: |
-          if [ -d "$THEOS/include/PSHeader" ]; then
-            echo "PSHeader exists. Pulling latest changes..."
-            cd $THEOS/include/PSHeader
-            git pull
-          else
-            echo "PSHeader does not exist. Cloning repository..."
-            cd $THEOS/include
-            git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git
-          fi
-        env:
-          THEOS: ${{ github.workspace }}/theos
-
-      - name: Clone YouPiP
-        if: ${{ inputs.enable_youpip }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git
-
-      - name: Clone YTUHD
-        if: ${{ inputs.enable_ytuhd }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/Tonwalter888/YTUHD.git
+          wget "$deb_url" --no-verbose -O ${{ github.workspace }}/ytplus.deb &
           
-      - name: Clone Return-YouTube-Dislikes
-        if: ${{ inputs.enable_ryd }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git
- 
-      - name: Clone YouGroupSettings
-        if: ${{ inputs.enable_demc }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git
+          (
+            git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/CokePokes/YoutubeExtensions/
+            cd YoutubeExtensions
+            git sparse-checkout set --no-cone OpenYoutubeSafariExtension.appex
+            git checkout
+            mv *.appex ${{ github.workspace }}
+          ) &
+          
+          wait
 
-      - name: Clone YouQuality
-        if: ${{ inputs.enable_yq }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git
-
-      - name: Clone YTVideoOverlay
-        if: ${{ inputs.enable_yq || inputs.enable_youpip }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git
-
-      - name: Clone DontEatMyContent
-        if: ${{ inputs.enable_demc }}
-        run: |
-          cd ${{ github.workspace }}
-          git clone --quiet --depth=1 --recurse-submodules https://github.com/therealFoxster/DontEatMyContent.git
-
-      - name: Build YouPiP
-        if: ${{ inputs.enable_youpip }}
-        run: |
-          cd ${{ github.workspace }}/YouPiP
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/youpip.deb
+      - name: Clone Tweaks and Headers
+        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
         env:
           THEOS: ${{ github.workspace }}/theos
-
-      - name: Build YTUHD
-        if: ${{ inputs.enable_ytuhd }}
         run: |
-          cd ${{ github.workspace }}/YTUHD
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/ytuhd.deb
+          # Launch all repository clones concurrently
+          (
+            if [ -d "$THEOS/include/YouTubeHeader" ]; then
+              git -C $THEOS/include/YouTubeHeader pull
+            else
+              git clone --quiet --depth=1 https://github.com/PoomSmart/YouTubeHeader.git $THEOS/include/YouTubeHeader
+            fi
+            if [ "${{ inputs.enable_demc }}" = "true" ]; then
+              rm -rf "$THEOS/include/YTHeaders"
+              cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
+            fi
+          ) &
+
+          (
+            if [ -d "$THEOS/include/PSHeader" ]; then
+              git -C $THEOS/include/PSHeader pull
+            else
+              git clone --quiet --depth=1 https://github.com/PoomSmart/PSHeader.git $THEOS/include/PSHeader
+            fi
+          ) &
+
+          [ "${{ inputs.enable_youpip }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git &[ "${{ inputs.enable_ytuhd }}" = "true" ] && git clone --quiet --depth=1 https://github.com/Tonwalter888/YTUHD.git &[ "${{ inputs.enable_ryd }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/Return-YouTube-Dislikes.git &[ "${{ inputs.enable_yq }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git &
+          [ "${{ inputs.enable_demc }}" = "true" ] && git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git &
+          [ "${{ inputs.enable_demc }}" = "true" ] && git clone --quiet --depth=1 --recurse-submodules https://github.com/therealFoxster/DontEatMyContent.git &
+          if [ "${{ inputs.enable_yq }}" = "true" ] ||[ "${{ inputs.enable_youpip }}" = "true" ]; then
+            git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git &
+          fi
+
+          wait
+
+      - name: Build Tweaks
+        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
         env:
           THEOS: ${{ github.workspace }}/theos
-
-      - name: Build Return-YouTube-Dislikes
-        if: ${{ inputs.enable_ryd }}
         run: |
-          cd ${{ github.workspace }}/Return-YouTube-Dislikes
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/ryd.deb
-        env:
-          THEOS: ${{ github.workspace }}/theos
+          build_tweak() {
+            cd ${{ github.workspace }}/$1
+            # -j$(sysctl -n hw.logicalcpu) ensures compilation utilizes all CPU Cores
+            make clean package -j$(sysctl -n hw.logicalcpu) DEBUG=0 FINALPACKAGE=1
+            mv packages/*.deb ${{ github.workspace }}/$2.deb
+          }
 
-      - name: Build YouGroupSettings
-        if: ${{ inputs.enable_demc }}
-        run: |
-          cd ${{ github.workspace }}/YouGroupSettings
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/ygs.deb
-        env:
-          THEOS: ${{ github.workspace }}/theos
-
-      - name: Build YouQuality
-        if: ${{ inputs.enable_yq }}
-        run: |
-          cd ${{ github.workspace }}/YouQuality
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/yq.deb
-        env:
-          THEOS: ${{ github.workspace }}/theos
-
-      - name: Build YTVideoOverlay
-        if: ${{ inputs.enable_yq || inputs.enable_youpip }}
-        run: |
-          cd ${{ github.workspace }}/YTVideoOverlay
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/ytvo.deb
-        env:
-          THEOS: ${{ github.workspace }}/theos
-
-      - name: Build DontEatMyContent
-        if: ${{ inputs.enable_demc }}
-        run: |
-          cd ${{ github.workspace }}/DontEatMyContent
-          make clean package DEBUG=0 FINALPACKAGE=1
-          mv packages/*.deb ${{ github.workspace }}/demc.deb
-        env:
-          THEOS: ${{ github.workspace }}/theos
+          [ "${{ inputs.enable_youpip }}" = "true" ] && build_tweak YouPiP youpip[ "${{ inputs.enable_ytuhd }}" = "true" ] && build_tweak YTUHD ytuhd[ "${{ inputs.enable_ryd }}" = "true" ] && build_tweak Return-YouTube-Dislikes ryd[ "${{ inputs.enable_demc }}" = "true" ] && { build_tweak YouGroupSettings ygs; build_tweak DontEatMyContent demc; }[ "${{ inputs.enable_yq }}" = "true" ] && build_tweak YouQuality yq
+          if[ "${{ inputs.enable_yq }}" = "true" ] || [ "${{ inputs.enable_youpip }}" = "true" ]; then
+            build_tweak YTVideoOverlay ytvo
+          fi
 
       - name: Inject tweaks into IPA
         run: |
-          tweaks="ytplus.deb OpenYoutubeSafariExtension.appex"
+          tweaks="OpenYoutubeSafariExtension.appex"
 
           for f in *.deb; do
             if [ -f "$f" ]; then
